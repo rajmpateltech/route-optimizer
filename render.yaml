@@ -7,7 +7,6 @@
 #      https://github.com/rajmpateltech/route-optimizer
 #   4. When prompted, set DATABASE_URL for BOTH backend and optimizer
 #      to your Neon connection string.
-#   5. Set CORS_ORIGINS below to the actual frontend URL you're given.
 #
 # After deploy, you get 3 public URLs:
 #   frontend:  https://routeoptimizer-frontend.onrender.com
@@ -15,16 +14,17 @@
 #   optimizer: https://routeoptimizer-optimizer.onrender.com
 
 services:
-  # --- Frontend (React SPA served as static site) ---
-  - type: static_site
+  # --- Frontend (React SPA served via Node) ---
+  - type: web
     name: routeoptimizer-frontend
+    runtime: node
     buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: frontend/dist
+    startCommand: cd frontend && npx serve dist -s -l $PORT
     envVars:
       - key: VITE_API_BASE
         value: https://routeoptimizer-backend.onrender.com
 
-  # --- Backend (Node.js API) ---
+  # --- Backend (Node.js API, Docker) ---
   - type: web
     name: routeoptimizer-backend
     runtime: docker
@@ -53,7 +53,7 @@ services:
       - key: MAX_STOPS_PER_JOB
         value: "5000"
 
-  # --- Optimizer (Python / OR-Tools) ---
+  # --- Optimizer (Python / OR-Tools, Docker) ---
   - type: web
     name: routeoptimizer-optimizer
     runtime: docker
