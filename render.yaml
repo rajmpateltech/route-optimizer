@@ -1,25 +1,30 @@
-# Render Blueprint — deploys backend + optimizer as two free web services.
+# Render Blueprint — deploys the ENTIRE RouteOptimizer stack.
 #
-# 1. Create a free Postgres at https://neon.tech  ->  copy the connection string.
-# 2. Render Dashboard -> New -> Blueprint -> point at this repo.
-# 3. When prompted, set DATABASE_URL (backend + optimizer) to your Neon string.
-#    Leave REDIS_URL empty unless you want cross-instance rate limiting (Upstash free).
-# 4. Host the frontend on Netlify with env var:
-#       VITE_API_BASE = https://routeoptimizer-backend.onrender.com
-#    and set CORS_ORIGINS below to your Netlify URL (https://<app>.netlify.app).
-#    IMPORTANT: replace the placeholder below with your actual Netlify URL
-#    before/after deploying, otherwise browser requests from Netlify will be blocked.
-services:
-  - type: web
-    name: routeoptimizer-optimizer
-    runtime: docker
-    rootDir: optimizer
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
-    healthCheckPath: /health
-    envVars:
-      - key: DATABASE_URL
-        sync: false
+# BEFORE deploying:
+#   1. Create a free Postgres at https://neon.tech -> copy the connection string.
+#   2. Delete any existing Render services for this app (to avoid conflicts).
+#   3. Render Dashboard -> New -> Blueprint -> connect
+#      https://github.com/rajmpateltech/route-optimizer
+#   4. When prompted, set DATABASE_URL for BOTH backend and optimizer
+#      to your Neon connection string.
+#   5. Set CORS_ORIGINS below to the actual frontend URL you're given.
+#
+# After deploy, you get 3 public URLs:
+#   frontend:  https://routeoptimizer-frontend.onrender.com
+#   backend:   https://routeoptimizer-backend.onrender.com
+#   optimizer: https://routeoptimizer-optimizer.onrender.com
 
+services:
+  # --- Frontend (React SPA served as static site) ---
+  - type: static_site
+    name: routeoptimizer-frontend
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_BASE
+        value: https://routeoptimizer-backend.onrender.com
+
+  # --- Backend (Node.js API) ---
   - type: web
     name: routeoptimizer-backend
     runtime: docker
@@ -36,8 +41,25 @@ services:
       - key: OPTIMIZER_URL
         value: https://routeoptimizer-optimizer.onrender.com
       - key: CORS_ORIGINS
-        value: https://REPLACE-WITH-YOUR-NETLIFY-URL.netlify.app
+        value: https://routeoptimizer-frontend.onrender.com
       - key: OSRM_MODE
         value: hosted
       - key: GEOCODER
         value: nominatim
+      - key: OSRM_TABLE_CHUNK
+        value: "100"
+      - key: OSRM_THROTTLE_MS
+        value: "700"
+      - key: MAX_STOPS_PER_JOB
+        value: "5000"
+
+  # --- Optimizer (Python / OR-Tools) ---
+  - type: web
+    name: routeoptimizer-optimizer
+    runtime: docker
+    rootDir: optimizer
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
