@@ -29,7 +29,6 @@ services:
     name: routeoptimizer-backend
     runtime: docker
     rootDir: backend
-    startCommand: node dist/server.js
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
@@ -58,7 +57,6 @@ services:
     name: routeoptimizer-optimizer
     runtime: docker
     rootDir: optimizer
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
